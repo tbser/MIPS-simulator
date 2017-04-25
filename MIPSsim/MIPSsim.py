@@ -18,39 +18,26 @@ proj_path = str(sys.path[0])
 
 # MIPS模拟器
 def simulator(sample_path):
-    cont = []
-    with open(sample_path, 'r') as f:
-        for x in f.readlines():  # 处理文档
-            x = x.strip()
-            cont.append(x)
-    # print(cont)
+    '''处理文档'''
+    fr = open(sample_path, 'r')
+    cont = [inst.strip() for inst in fr.readlines()]
+    contSize = len(cont)
+    
+    # 记录BREAK指令位置 axis前为指令 axis后为数据
+    axis = 0
+    for i in range(contSize):
+        if cont[i][3:6] == '101':  axis = i + 1
 
     '''添加每条对应地址'''
-    l = []
     addr = 128    # 起始指令地址
-    cut = 0       # cut前为指令 cut后为数据
-    for i in range(len(cont)):
-        cont[i] += '\t' + str(addr)   # 该行添加对应地址
-        l.append(cont[i])
-        addr += 4         # 下一条指令地址
-        if cont[i][3:6] == '101':     # 判断是否为BREAK指令
-            cut = i+1                 # 记录BREAK指令位置 后面为数据
-    # print(l)
+    l = [cont[i]+'\t'+str(addr + i*4) for i in range(contSize)]      # 添加对应地址
 
     '''分别解析指令和数据'''
-    instructions = []
-    for tl in l[0:cut]:                # cut前为指令 指令解析
-        instructions.append(insParse(tl))
-    # print(instructions)
+    instructions = [insParse(tl) for tl in l[0:axis]]   # axis前为指令 指令解析
+    data = [dataParse(tl) for tl in l[axis:]]           # axis后为数据 数据解析
 
-    data = []
-    for tl in l[cut:]:                 # cut后为数据 数据解析
-        data.append(dataParse(tl))
-
-    # print(data)
-    data[-1] = data[-1].strip()        # 把disassembly里(data后面)多出的最后一行空格去掉
-
-    disassembly = instructions + data      # 反汇编结果
+    disassembly = instructions + data           # 反汇编结果
+    disassembly[-1] = disassembly[-1].strip()   # 把disassembly里(data后面)多出的最后一行空格去掉
 
     '''1、将反汇编结果disassembly写入文件'''
     with open(proj_path+'/generated_disassembly.txt', 'w') as f:
@@ -117,7 +104,6 @@ def insParse(il):
     ll += '\n'
     return ll
 
-
 def dataParse(dl):
     if dl[0] == '0':   # 正数
         dl += '\t' + str(int(dl[0:32], 2))
@@ -135,7 +121,6 @@ def insToDict(instructions):
     ins_dict['instr'+instructions[33:36]] = instructions[37:].strip()
     # print(ins_dict)     # {'128': '11000000000000000000100000000000', 'instr128': 'ADD R1, R0, R0'} ...
     return ins_dict
-
 
 # 数据预处理
 def dataToDict(data):
